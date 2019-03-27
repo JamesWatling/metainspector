@@ -22,6 +22,7 @@ module MetaInspector
       @headers            = options[:headers]
       @faraday_options    = options[:faraday_options] || {}
       @faraday_http_cache = options[:faraday_http_cache]
+      @cache_store        = options[:cache_store]
 
       response            # request early so we can fail early
     end
@@ -39,7 +40,13 @@ module MetaInspector
     end
 
     def response
-      @response ||= fetch
+      if @cache_store
+        @cache_store[:store].fetch(url, expires_in: @cache_store[:expires_in]) do
+          @response ||= fetch
+        end
+      else
+        @response ||= fetch
+      end
     rescue Faraday::TimeoutError => e
       raise MetaInspector::TimeoutError.new(e)
     rescue Faraday::Error::ConnectionFailed, Faraday::SSLError, URI::InvalidURIError, FaradayMiddleware::RedirectLimitReached => e
